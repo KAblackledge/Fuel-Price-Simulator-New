@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cotswold Airways — Fuel Cost Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky:#0a1628; --accent:#f5a623; --accent2:#e8f4fd;
+    --danger:#e84040; --success:#2ecc71; --warn:#f39c12;
+    --text:#e8f0fe; --muted:#7a9cc2;
+    --card:rgba(255,255,255,0.05); --card-border:rgba(255,255,255,0.1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--sky);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(26,58,110,.6) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(245,166,35,.08) 0%,transparent 50%),linear-gradient(180deg,#050d1a 0%,#0a1628 40%,#0d2147 100%);z-index:0;pointer-events:none;}
+  .stars{position:fixed;inset:0;z-index:0;pointer-events:none;}
+  .star{position:absolute;background:white;border-radius:50%;animation:twinkle 3s infinite alternate;}
+  @keyframes twinkle{0%{opacity:.2}100%{opacity:.9}}
+  .container{position:relative;z-index:1;max-width:920px;margin:0 auto;padding:2rem 1.5rem 4rem;}
+  .header{text-align:center;margin-bottom:2rem;animation:fadeDown .8s ease both;}
+  .header .eyebrow{font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.25em;color:var(--accent);text-transform:uppercase;margin-bottom:.5rem;}
+  .header h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.8rem,7vw,5rem);letter-spacing:.05em;line-height:1;}
+  .header h1 span{color:var(--accent);}
+  .header .subtitle{margin-top:.75rem;color:var(--muted);font-size:.9rem;font-weight:300;}
+  .scenario-bar{background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.25);border-radius:12px;padding:1rem 1.4rem;margin-bottom:1.5rem;display:flex;align-items:flex-start;gap:1rem;animation:fadeUp .8s .2s ease both;}
+  .scenario-bar .icon{font-size:1.4rem;flex-shrink:0;margin-top:2px;}
+  .scenario-bar p{font-size:.85rem;color:var(--accent2);line-height:1.6;}
+  .scenario-bar strong{color:var(--accent);}
+  .slider-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:1.75rem 2rem 1.5rem;margin-bottom:1.5rem;animation:fadeUp .8s .3s ease both;}
+  .slider-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:1.25rem;}
+  .slider-top h2{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--accent);}
+  .fuel-price-big{font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;transition:color .3s;}
+  .fuel-price-big.low{color:var(--success);} .fuel-price-big.mid{color:var(--warn);} .fuel-price-big.high{color:var(--danger);}
+  input[type=range]{-webkit-appearance:none;width:100%;height:7px;border-radius:4px;background:linear-gradient(90deg,var(--success) 0%,var(--warn) 50%,var(--danger) 100%);outline:none;cursor:pointer;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:white;border:3px solid var(--accent);box-shadow:0 0 14px rgba(245,166,35,.6);cursor:pointer;}
+  .pin-row{position:relative;height:42px;margin:.65rem 0 .2rem;}
+  .pin{position:absolute;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;cursor:pointer;}
+  .pin:hover .pin-dot{opacity:.9;}
+  .pin-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);opacity:.5;margin-bottom:2px;transition:all .2s;}
+  .pin-label{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);white-space:nowrap;text-align:center;line-height:1.3;transition:color .2s;}
+  .pin.active .pin-dot{opacity:1;background:white;box-shadow:0 0 8px rgba(245,166,35,1);}
+  .pin.active .pin-label{color:var(--accent);}
+  /* THE KEY FEATURE */
+  .event-banner{margin-top:1rem;padding:.9rem 1.2rem;border-radius:10px;border:1px solid;display:flex;align-items:flex-start;gap:.9rem;transition:background .3s,border-color .3s;}
+  .event-banner.low{background:rgba(46,204,113,.08);border-color:rgba(46,204,113,.35);}
+  .event-banner.mid{background:rgba(243,156,18,.08);border-color:rgba(243,156,18,.35);}
+  .event-banner.high{background:rgba(232,64,64,.08);border-color:rgba(232,64,64,.35);}
+  .ev-year{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;line-height:1.1;flex-shrink:0;min-width:5rem;transition:color .3s;}
+  .event-banner.low .ev-year{color:var(--success);}
+  .event-banner.mid .ev-year{color:var(--warn);}
+  .event-banner.high .ev-year{color:var(--danger);}
+  .ev-title{font-size:.82rem;font-weight:600;margin-bottom:.25rem;transition:color .3s;}
+  .event-banner.low .ev-title{color:var(--success);}
+  .event-banner.mid .ev-title{color:var(--warn);}
+  .event-banner.high .ev-title{color:var(--danger);}
+  .ev-desc{font-size:.8rem;color:var(--accent2);line-height:1.6;}
+  .metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:1rem;margin-bottom:1.5rem;animation:fadeUp .8s .4s ease both;}
+  .metric-card{background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:1.2rem 1.4rem;position:relative;overflow:hidden;}
+  .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:.4;}
+  .metric-card .label{font-size:.7rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:.4rem;}
+  .metric-card .value{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:.03em;line-height:1;transition:color .3s;}
+  .metric-card .sub{font-size:.75rem;color:var(--muted);margin-top:.25rem;min-height:1em;}
+  .delta{display:inline-block;font-size:.72rem;font-family:'DM Mono',monospace;padding:.15rem .5rem;border-radius:4px;margin-top:.35rem;transition:all .3s;}
+  .delta.up{background:rgba(232,64,64,.15);color:var(--danger);}
+  .delta.down{background:rgba(46,204,113,.15);color:var(--success);}
+  .delta.neutral{background:rgba(122,156,194,.15);color:var(--muted);}
+  .breakdown-section{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:1.6rem;margin-bottom:1.5rem;animation:fadeUp .8s .5s ease both;}
+  .breakdown-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;color:var(--muted);margin-bottom:1.1rem;}
+  .cost-row{margin-bottom:.9rem;}
+  .cost-row .bar-label{display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.3rem;color:var(--accent2);}
+  .cost-row .bar-label .right{display:flex;gap:.6rem;font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);}
+  .bar-track{height:7px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:4px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+  .bf-fuel{background:linear-gradient(90deg,var(--warn),var(--danger));}
+  .bf-labour{background:rgba(100,160,255,.7);}
+  .bf-airport{background:rgba(180,120,255,.7);}
+  .bf-aircraft{background:rgba(100,200,180,.7);}
+  .bf-catering{background:rgba(255,180,100,.7);}
+  .bf-nav{background:rgba(150,180,255,.5);}
+  .bf-profit{background:linear-gradient(90deg,var(--success),#27ae60);}
+  .profit-status{text-align:center;padding:.9rem;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.08em;margin-top:.75rem;transition:all .4s;}
+  .profit-status.profitable{background:rgba(46,204,113,.1);color:var(--success);border:1px solid rgba(46,204,113,.2);}
+  .profit-status.breaking{background:rgba(243,156,18,.1);color:var(--warn);border:1px solid rgba(243,156,18,.2);}
+  .profit-status.loss{background:rgba(232,64,64,.1);color:var(--danger);border:1px solid rgba(232,64,64,.2);}
+  .decision-panel{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:1.6rem;margin-bottom:1.5rem;animation:fadeUp .8s .6s ease both;}
+  .decision-panel h3{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;color:var(--muted);margin-bottom:1.1rem;}
+  .decisions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;}
+  .decision-btn{background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:10px;padding:.9rem;cursor:pointer;text-align:left;transition:all .22s;color:var(--text);}
+  .decision-btn:hover{background:rgba(245,166,35,.1);border-color:rgba(245,166,35,.4);transform:translateY(-2px);}
+  .decision-btn.selected{background:rgba(245,166,35,.12);border-color:var(--accent);}
+  .decision-btn .d-icon{font-size:1.3rem;margin-bottom:.35rem;}
+  .decision-btn .d-title{font-size:.82rem;font-weight:600;margin-bottom:.2rem;}
+  .decision-btn .d-effect{font-size:.7rem;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.4;}
+  .insight-box{background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.18);border-radius:12px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;animation:fadeUp .8s .7s ease both;}
+  .insight-box .insight-label{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.2em;color:var(--accent);text-transform:uppercase;margin-bottom:.45rem;}
+  .insight-box p{font-size:.87rem;color:var(--accent2);line-height:1.65;}
+  .questions-section{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:1.6rem;animation:fadeUp .8s .8s ease both;}
+  .questions-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.05em;color:var(--muted);margin-bottom:1.1rem;}
+  .questions-section ol{list-style:none;counter-reset:q;}
+  .questions-section li{counter-increment:q;display:flex;gap:1rem;padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.87rem;color:var(--accent2);line-height:1.5;}
+  .questions-section li:last-child{border-bottom:none;}
+  .questions-section li::before{content:counter(q);font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--accent);flex-shrink:0;width:1.2rem;margin-top:1px;}
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @media(max-width:600px){.metrics-grid{grid-template-columns:1fr 1fr;}.decisions{grid-template-columns:1fr 1fr;}}
+
+  /* ── 6-MONTH STRATEGY CALCULATOR ── */
+  .calc-section{background:var(--card);border:2px solid rgba(245,166,35,.3);border-radius:16px;padding:1.6rem;margin-bottom:1.5rem;}
+  .calc-header{margin-bottom:1.2rem;}
+  .calc-header h3{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.05em;color:var(--accent);margin-bottom:.3rem;}
+  .calc-header p{font-size:.82rem;color:var(--muted);line-height:1.55;}
+  .scenario-selector{margin-bottom:1.2rem;}
+  .scenario-selector label{font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.5rem;}
+  .scen-btns{display:flex;gap:.5rem;flex-wrap:wrap;}
+  .scen-btn{font-size:.78rem;padding:.4rem .9rem;border-radius:6px;border:1px solid var(--card-border);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;}
+  .scen-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .scen-btn.active{border-color:var(--accent);background:rgba(245,166,35,.12);color:var(--accent);}
+  .month-timeline{display:grid;grid-template-columns:repeat(6,1fr);gap:.5rem;margin-bottom:1.3rem;}
+  .month-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.7rem .5rem;text-align:center;}
+  .month-card .m-name{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:.25rem;}
+  .month-card .m-price{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;transition:color .3s;}
+  .month-card .m-price.low{color:var(--success);} .month-card .m-price.mid{color:var(--warn);} .month-card .m-price.high{color:var(--danger);}
+  .month-card .m-profit{font-family:'DM Mono',monospace;font-size:.62rem;margin-top:.2rem;}
+  .month-card .m-profit.pos{color:var(--success);} .month-card .m-profit.neg{color:var(--danger);}
+  .team-setup{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.2rem;}
+  .team-box{border-radius:12px;padding:1rem;border:2px solid;}
+  .team-box.ta{border-color:rgba(100,160,255,.4);background:rgba(100,160,255,.05);}
+  .team-box.tb{border-color:rgba(255,140,100,.4);background:rgba(255,140,100,.05);}
+  .team-box .tb-label{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:.5rem;}
+  .team-box.ta .tb-label{color:rgba(100,160,255,.9);}
+  .team-box.tb .tb-label{color:rgba(255,140,100,.9);}
+  .team-name-input{font-family:'DM Sans',sans-serif;font-size:.85rem;padding:.35rem .6rem;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--text);width:100%;margin-bottom:.6rem;}
+  .team-name-input:focus{outline:none;border-color:var(--accent);}
+  .strat-select{width:100%;font-family:'DM Sans',sans-serif;font-size:.82rem;padding:.35rem .6rem;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:#0d2147;color:var(--text);cursor:pointer;}
+  .strat-select:focus{outline:none;border-color:var(--accent);}
+  .lock-btn{width:100%;margin-top:1.2rem;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.1em;padding:.7rem;border-radius:8px;border:2px solid var(--accent);background:rgba(245,166,35,.12);color:var(--accent);cursor:pointer;transition:all .2s;}
+  .lock-btn:hover{background:var(--accent);color:#0a1628;}
+  .results-section{display:none;}
+  .results-section.visible{display:block;}
+  .totals-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.2rem;}
+  .total-pill{background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:10px;padding:.8rem 1rem;text-align:center;}
+  .total-pill .tp-label{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;}
+  .total-pill .tp-val{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.03em;}
+  .total-pill .tp-val.pos{color:var(--success);} .total-pill .tp-val.neg{color:var(--danger);}
+  .team-results{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+  .team-result-card{border-radius:12px;padding:1.1rem;border:2px solid;}
+  .team-result-card.ta{border-color:rgba(100,160,255,.5);background:rgba(100,160,255,.07);}
+  .team-result-card.tb{border-color:rgba(255,140,100,.5);background:rgba(255,140,100,.07);}
+  .team-result-card .tr-label{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:.3rem;}
+  .team-result-card.ta .tr-label{color:rgba(100,160,255,.9);}
+  .team-result-card.tb .tr-label{color:rgba(255,140,100,.9);}
+  .team-result-card .tr-name{font-size:.95rem;font-weight:600;color:var(--text);margin-bottom:.15rem;}
+  .team-result-card .tr-strat{font-size:.78rem;color:var(--muted);margin-bottom:.5rem;}
+  .team-result-card .tr-total{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:.03em;line-height:1;}
+  .team-result-card .tr-total.pos{color:var(--success);} .team-result-card .tr-total.neg{color:var(--danger);}
+  .team-result-card .tr-perfl{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);margin-top:.25rem;}
+  .winner-bar{border-radius:10px;padding:1rem 1.4rem;text-align:center;margin-bottom:.8rem;}
+  .winner-bar.ta-wins{background:rgba(100,160,255,.1);border:1px solid rgba(100,160,255,.3);}
+  .winner-bar.tb-wins{background:rgba(255,140,100,.1);border:1px solid rgba(255,140,100,.3);}
+  .winner-bar.draw{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);}
+  .winner-bar .wb-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;}
+  .winner-bar.ta-wins .wb-title{color:rgba(100,160,255,1);}
+  .winner-bar.tb-wins .wb-title{color:rgba(255,140,100,1);}
+  .winner-bar.draw .wb-title{color:var(--accent);}
+  .winner-bar .wb-sub{font-size:.8rem;color:var(--muted);margin-top:.2rem;}
+  .try-again-btn{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em;padding:.55rem 1.4rem;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;}
+  .try-again-btn:hover{border-color:var(--text);color:var(--text);}
+  @media(max-width:600px){.month-timeline{grid-template-columns:repeat(3,1fr);}.team-setup{grid-template-columns:1fr;}.team-results{grid-template-columns:1fr;}.totals-row{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<div class="container">
+
+  <div class="header">
+    <div class="eyebrow">Interactive Learning Activity — Cirencester College</div>
+    <h1>Cotswold<br><span>Airways</span></h1>
+    <p class="subtitle">LHR to JFK &nbsp;·&nbsp; Boeing 777-300ER &nbsp;·&nbsp; Drag the slider to see how world events change the economics of every flight</p>
+  </div>
+
+  <div class="scenario-bar">
+    <div class="icon">🛫</div>
+    <p>You run <strong>Cotswold Airways</strong>, founded in Cirencester. Flagship route: <strong>London Heathrow (LHR) to New York JFK</strong> (3,459nm, approx 9h 40m). Aircraft: <strong>Boeing 777-300ER</strong> in BA-style mixed cabin with <strong>256 passengers</strong> across First, Club World, Premium Economy and Economy. Fuel burn: <strong>33,000 gallons per flight</strong>. Blended average fare: <strong>£420 per seat</strong>. Drag the slider or <strong>click any event pin</strong> to explore the impact.</p>
+  </div>
+
+  <div class="slider-card">
+    <div class="slider-top">
+      <h2>Jet Fuel Price (USD per gallon)</h2>
+      <div class="fuel-price-big mid" id="fuelDisplay">$2.44</div>
+    </div>
+    <input type="range" id="fuelSlider" min="0.50" max="5.00" step="0.01" value="2.44">
+    <div class="pin-row" id="pinRow"></div>
+    <div class="event-banner mid" id="eventBanner">
+      <div class="ev-year" id="evYear">2024</div>
+      <div>
+        <div class="ev-title" id="evTitle">Stable market — 2024 baseline</div>
+        <div class="ev-desc" id="evDesc">Jet fuel averaged $2.44/gal in 2024. BA parent IAG reported strong profits. Airlines were watching Middle East tensions closely — the Strait of Hormuz carries 20% of world oil supply and any disruption moves jet fuel prices within hours.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="label">Fuel Cost per Flight</div>
+      <div class="value" id="fuelCost">£63,635</div>
+      <div class="sub" id="fuelSub">33,000 gal x $2.44 x £0.79</div>
+      <div class="delta neutral" id="fuelDelta">baseline</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Break-Even Fare</div>
+      <div class="value" id="breakEven">£436</div>
+      <div class="sub">Min avg fare to cover all costs</div>
+      <div class="delta neutral" id="ticketDelta">baseline</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Profit per Flight</div>
+      <div class="value" id="profitVal">+£43,597</div>
+      <div class="sub">At blended avg fare of £420/seat</div>
+      <div class="delta neutral" id="profitDelta">baseline</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Fuel % of Costs</div>
+      <div class="value" id="fuelPct">57%</div>
+      <div class="sub">Long-haul avg: 30 to 40%</div>
+      <div class="delta neutral" id="pctDelta">normal range</div>
+    </div>
+  </div>
+
+  <div class="breakdown-section">
+    <h3>Full Cost Breakdown per Flight — Boeing 777-300ER, LHR to JFK (BA-benchmarked figures)</h3>
+    <div class="cost-row">
+      <div class="bar-label"><span>Jet Fuel (33,000 gallons)</span><div class="right"><span id="fuelAbs">£63,635</span><span id="fuelBarPct">57%</span></div></div>
+      <div class="bar-track"><div class="bar-fill bf-fuel" id="fuelBar" style="width:57%"></div></div>
+    </div>
+    <div class="cost-row">
+      <div class="bar-label"><span>Labour — 2 pilots + 14 cabin crew + ground staff at both airports</span><div class="right"><span>£6,920</span><span id="labourPct">6%</span></div></div>
+      <div class="bar-track"><div class="bar-fill bf-labour" id="labourBar" style="width:6%"></div></div>
+    </div>
+    <div class="cost-row">
+      <div class="bar-label"><span>Airport fees — LHR £23.73/pax (2025 CAA cap) + JFK + landing slots</span><div class="right"><span>£18,575</span><span id="airportPct">17%</span></div></div>
+      <div class="bar-track"><div class="bar-fill bf-airport" id="airportBar" style="width:17%"></div></div>
+    </div>
+    <div class="cost-row">
+      <div class="bar-label"><span>Aircraft lease + maintenance + insurance</span><div class="right"><span>£9,500</span><span id="aircraftPct">9%</span></div></div>
+      <div class="bar-track"><div class="bar-fill bf-aircraft" id="aircraftBar" style="width:9%"></div></div>
+    </div>
+    <div class="cost-row">
+      <div class="bar-label"><span>Catering and passenger services (approx £38 per passenger)</span><div class="right"><span>£9,728</span><span id="cateringPct">9%</span></div></div>
+      <div class="bar-track"><div class="bar-fill bf-catering" id="cateringBar" style="width:9%"></div></div>
+    </div>
+    <div class="cost-row">
+      <div class="bar-label"><span>Navigation and overflight fees (NATS, Eurocontrol, oceanic)</span><div class="right"><span>£3,200</span><span id="navPct">3%</span></div></div>
+      <div class="bar-track"><div class="bar-fill bf-nav" id="navBar" style="width:3%"></div></div>
+    </div>
+    <div class="cost-row">
+      <div class="bar-label"><span>Profit or Loss</span><div class="right"><span id="profitAbs">+£43,597</span><span id="profitBarPct">+41%</span></div></div>
+      <div class="bar-track"><div class="bar-fill bf-profit" id="profitBar" style="width:41%"></div></div>
+    </div>
+    <div class="profit-status profitable" id="profitStatus">Cotswold Airways is Profitable — Flying High</div>
+  </div>
+
+  <div class="decision-panel">
+    <h3>What Would You Do as CEO? Click a strategy to explore the real-world trade-offs</h3>
+    <div class="decisions">
+      <button class="decision-btn" onclick="selectDecision(this,'raise')">
+        <div class="d-icon">🎫</div><div class="d-title">Raise Ticket Prices</div>
+        <div class="d-effect">Pass cost to passengers. Risk losing bookings to rivals.</div>
+      </button>
+      <button class="decision-btn" onclick="selectDecision(this,'cut')">
+        <div class="d-icon">✂️</div><div class="d-title">Cut Routes</div>
+        <div class="d-effect">Drop unprofitable slots. Reduces network reach.</div>
+      </button>
+      <button class="decision-btn" onclick="selectDecision(this,'hedge')">
+        <div class="d-icon">📈</div><div class="d-title">Hedge Fuel Contracts</div>
+        <div class="d-effect">Lock in today's price for future flights.</div>
+      </button>
+      <button class="decision-btn" onclick="selectDecision(this,'fees')">
+        <div class="d-icon">🧳</div><div class="d-title">Add Ancillary Fees</div>
+        <div class="d-effect">Bags, seats, meals — revenue without raising base fare.</div>
+      </button>
+      <button class="decision-btn" onclick="selectDecision(this,'planes')">
+        <div class="d-icon">🛩️</div><div class="d-title">Buy Fuel-Efficient Planes</div>
+        <div class="d-effect">787 Dreamliner uses 20% less fuel than the 777.</div>
+      </button>
+      <button class="decision-btn" onclick="selectDecision(this,'nothing')">
+        <div class="d-icon">⏳</div><div class="d-title">Wait It Out</div>
+        <div class="d-effect">Hope prices drop. Risk burning through cash.</div>
+      </button>
+    </div>
+  </div>
+
+  <div class="insight-box">
+    <div class="insight-label">CEO Strategy Insight</div>
+    <p id="insightText">Select a CEO decision above to see how airlines have used that strategy in the real world — and whether it worked.</p>
+  </div>
+
+  <!-- ── 6-MONTH STRATEGY CALCULATOR ── -->
+  <div class="calc-section" id="calcSection">
+    <div class="calc-header">
+      <h3>🏆 6-Month Strategy Challenge</h3>
+      <p>Two teams each pick a strategy and lock it in. The simulator runs 6 months of real fuel price movements. Whichever team ends with the highest profit (or lowest loss) wins. Cotswold Airways runs <strong>2 return flights per day = 360 flights over 6 months</strong>.</p>
+    </div>
+
+    <!-- Fuel price scenario selector -->
+    <div class="scenario-selector">
+      <label>Choose a fuel price scenario for the 6 months</label>
+      <div class="scen-btns">
+        <button class="scen-btn active" onclick="setScenario(this,'stable')">Stable Market (2024)</button>
+        <button class="scen-btn" onclick="setScenario(this,'spike')">Crisis Spike (2008-style)</button>
+        <button class="scen-btn" onclick="setScenario(this,'crash')">COVID Crash (2020-style)</button>
+        <button class="scen-btn" onclick="setScenario(this,'recover')">Recovery (post-spike fall)</button>
+        <button class="scen-btn" onclick="setScenario(this,'volatile')">Volatile — Unpredictable</button>
+      </div>
+    </div>
+
+    <!-- Month-by-month fuel price preview -->
+    <div style="margin-bottom:.5rem;">
+      <span style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">Fuel price each month (USD/gal)</span>
+    </div>
+    <div class="month-timeline" id="monthTimeline"></div>
+
+    <!-- Team setup -->
+    <div class="team-setup">
+      <div class="team-box ta">
+        <div class="tb-label">Team A</div>
+        <input class="team-name-input" id="nameA" placeholder="Team name..." value="Team A">
+        <select class="strat-select" id="stratA">
+          <option value="nothing">Do nothing — no changes</option>
+          <option value="raise">Raise ticket prices (+£60/seat)</option>
+          <option value="cut">Cut to 1 flight/day (save fixed costs)</option>
+          <option value="hedge">Hedge fuel at today's starting price</option>
+          <option value="fees">Add ancillary fees (+£35/pax revenue)</option>
+          <option value="planes">Lease fuel-efficient plane (20% fuel saving, £18k/month extra cost)</option>
+        </select>
+      </div>
+      <div class="team-box tb">
+        <div class="tb-label">Team B</div>
+        <input class="team-name-input" id="nameB" placeholder="Team name..." value="Team B">
+        <select class="strat-select" id="stratB">
+          <option value="raise">Raise ticket prices (+£60/seat)</option>
+          <option value="nothing">Do nothing — no changes</option>
+          <option value="cut">Cut to 1 flight/day (save fixed costs)</option>
+          <option value="hedge">Hedge fuel at today's starting price</option>
+          <option value="fees">Add ancillary fees (+£35/pax revenue)</option>
+          <option value="planes">Lease fuel-efficient plane (20% fuel saving, £18k/month extra cost)</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="lock-btn" id="lockBtn" onclick="runSimulation()">🔒 Lock In Decisions &amp; Run 6 Months</button>
+
+    <!-- Results (hidden until locked) -->
+    <div class="results-section" id="resultsSection">
+      <div style="margin:1.2rem 0 .8rem;border-top:1px solid var(--card-border);padding-top:1.2rem;">
+        <span style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">6-Month results — 360 flights total</span>
+      </div>
+
+      <div class="totals-row">
+        <div class="total-pill">
+          <div class="tp-label">Total Revenue</div>
+          <div class="tp-val pos" id="resTotalRev">£0</div>
+        </div>
+        <div class="total-pill">
+          <div class="tp-label">Total Fuel Cost</div>
+          <div class="tp-val neg" id="resTotalFuel">£0</div>
+        </div>
+        <div class="total-pill">
+          <div class="tp-label">Base Profit/Loss</div>
+          <div class="tp-val" id="resTotalBase">£0</div>
+        </div>
+      </div>
+
+      <div class="team-results">
+        <div class="team-result-card ta">
+          <div class="tr-label">Team A</div>
+          <div class="tr-name" id="resNameA">Team A</div>
+          <div class="tr-strat" id="resStratA">Strategy</div>
+          <div class="tr-total" id="resTotalA">£0</div>
+          <div class="tr-perfl" id="resPerFlA">per flight avg</div>
+        </div>
+        <div class="team-result-card tb">
+          <div class="tr-label">Team B</div>
+          <div class="tr-name" id="resNameB">Team B</div>
+          <div class="tr-strat" id="resStratB">Strategy</div>
+          <div class="tr-total" id="resTotalB">£0</div>
+          <div class="tr-perfl" id="resPerFlB">per flight avg</div>
+        </div>
+      </div>
+
+      <div class="winner-bar draw" id="winnerBar">
+        <div class="wb-title" id="winnerTitle">It's a draw!</div>
+        <div class="wb-sub" id="winnerSub">Both teams ended with the same result.</div>
+      </div>
+
+      <div style="text-align:center;">
+        <button class="try-again-btn" onclick="resetCalc()">↺ Try Different Strategies</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="questions-section">
+    <h3>Discussion Questions</h3>
+    <ol>
+      <li>When fuel prices double, the break-even fare jumps sharply. Why can't Cotswold Airways just always raise prices to match — especially when every competitor faces the same cost rise?</li>
+      <li>British Airways hedges 60–70% of its fuel needs in advance. If prices then crash (as in COVID 2020), hedging costs billions. Is it still worth doing, and why?</li>
+      <li>Heathrow charges £23.73 per passenger in airport fees alone. Why do airlines still prefer LHR over cheaper airports despite this cost?</li>
+      <li>If jet fuel stayed above $4.00/gal permanently, how might long-haul aviation look different in 20 years? Consider routes, aircraft technology and alternatives to flying.</li>
+      <li>In April 2020 fuel hit $0.61/gal — the cheapest in history — yet airlines were in crisis. What does this tell us about the relationship between fuel costs and airline profitability?</li>
+    </ol>
+  </div>
+
+</div>
+<script>
+  // Stars
+  const starsEl = document.getElementById('stars');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div'); s.className = 'star';
+    const sz = Math.random() * 2.5 + 0.5;
+    s.style.cssText = 'width:'+sz+'px;height:'+sz+'px;top:'+Math.random()*100+'%;left:'+Math.random()*100+'%;animation-delay:'+Math.random()*4+'s;animation-duration:'+(2+Math.random()*3)+'s;';
+    starsEl.appendChild(s);
+  }
+
+  // Historical events — each one links a price to a real-world story
+  var EVENTS = [
+    { price:0.61, year:"Apr 2020",  tier:"low",
+      title:"COVID-19 Pandemic — Air Travel Collapses",
+      desc:"Jet fuel crashed to $0.61/gal as global air travel fell 95% overnight. Airlines were not celebrating — almost no one was flying. BA grounded most of its fleet, furloughed 30,000 staff and burned through cash at roughly £20m per day. Cheap fuel is worthless with no passengers." },
+    { price:0.74, year:"2000",      tier:"low",
+      title:"Pre-9/11 Era — Cheap Fuel, Booming Travel",
+      desc:"Fuel averaged $0.74/gal at the turn of the millennium. Airlines were profitable and expanding aggressively. Then the September 2001 attacks caused an immediate shock — BA cut 7,000 jobs within weeks and suspended several transatlantic routes overnight." },
+    { price:1.15, year:"2016",      tier:"low",
+      title:"2016 — The Golden Era for Airline Profits",
+      desc:"Fuel fell to $1.15/gal as global oil supply surged during OPEC's price war with US shale producers. BA and most European carriers posted record profits. Airlines kept fares stable while pocketing the fuel savings — the most profitable period in aviation history." },
+    { price:1.50, year:"2009",      tier:"low",
+      title:"2009 — Post-Crisis Recovery, Prices Fall Back",
+      desc:"After the 2008 oil spike, fuel tumbled to $1.50/gal as the global recession crushed oil demand. Six US airlines had already gone bankrupt at the peak. Survivors found relative relief, though the recession had also hit passenger numbers, limiting any recovery." },
+    { price:2.44, year:"2024",      tier:"mid",
+      title:"2024 Baseline — Stable Market, Watchful Airlines",
+      desc:"Jet fuel averaged $2.44/gal in 2024. BA parent IAG reported strong annual profits. Airlines were carefully monitoring the Middle East — the Strait of Hormuz carries 20% of the world's oil supply and any disruption there moves jet fuel prices within hours of the news." },
+    { price:2.58, year:"Late 2024", tier:"mid",
+      title:"Late 2024 — Prices Edge Upward",
+      desc:"Prices crept to $2.58/gal as Middle East tensions increased. BA quietly raised its transatlantic fuel surcharges. Airlines remained profitable on long-haul routes but were stress-testing financial models for a scenario of further sustained rises into 2025 and 2026." },
+    { price:3.20, year:"2012",      tier:"mid",
+      title:"2012 — Elevated Oil, Squeezed Margins",
+      desc:"Fuel reached $3.20/gal as crude hovered around $110/barrel. Airlines introduced checked baggage fees and cut free allowances to recover margin. BA launched its first basic-economy short-haul fares. The industry remained profitable overall but margins were under significant pressure." },
+    { price:3.78, year:"2026",      tier:"high",
+      title:"2026 — Iran Conflict, Strait of Hormuz Disruption",
+      desc:"The current crisis: conflict involving Iran has disrupted oil flows through the Strait of Hormuz, pushing jet fuel to approximately $3.78/gal. Middle East airspace closures force costly route diversions on top of the fuel spike. BA has reinstated transatlantic fuel surcharges and is reviewing Gulf route profitability." },
+    { price:3.99, year:"Jul 2008",  tier:"high",
+      title:"2008 Oil Crisis — Industry Meltdown",
+      desc:"Oil hit $147 per barrel and jet fuel peaked at $3.99/gal. Six US airlines — including Aloha, ATA and Skybus — went bankrupt within months of each other. BA cut flights and suspended the London City to JFK service. Survivors did so through brutal cost-cutting and capacity reduction." },
+    { price:4.12, year:"Jun 2022",  tier:"high",
+      title:"Ukraine War — Highest Sustained Price on Record",
+      desc:"Russia's invasion of Ukraine sent crude to $130 per barrel. Jet fuel hit a record $4.12/gal. European airspace closures forced route diversions, adding hours and extra fuel burn. BA parent IAG posted a £1.2bn operating loss. LHR to JFK fuel surcharges peaked at £400 per return ticket." }
+  ];
+
+  var SLIDER_MIN = 0.50, SLIDER_MAX = 5.00;
+  var GALLONS = 33000, PASSENGERS = 256, AVG_FARE = 420;
+  var TOTAL_REV = AVG_FARE * PASSENGERS;
+  var LABOUR_COST = 6920, AIRPORT_FEES = 18575, AIRCRAFT_COST = 9500, CATERING = 9728, NAV_FEES = 3200;
+  var TOTAL_FIXED = LABOUR_COST + AIRPORT_FEES + AIRCRAFT_COST + CATERING + NAV_FEES;
+  var BASE_PRICE = 2.44, GBP = 0.79;
+  var selectedDecision = null;
+
+  var fuelSlider = document.getElementById('fuelSlider');
+  var pinRow = document.getElementById('pinRow');
+
+  // Build pins
+  EVENTS.forEach(function(ev, idx) {
+    var pct = ((ev.price - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
+    var pin = document.createElement('div');
+    pin.className = 'pin';
+    pin.id = 'pin' + idx;
+    pin.style.left = pct.toFixed(1) + '%';
+    pin.innerHTML = '<div class="pin-dot"></div><div class="pin-label">' + ev.year + '<br>$' + ev.price + '</div>';
+    pin.addEventListener('click', function() { fuelSlider.value = ev.price; update(); });
+    pinRow.appendChild(pin);
+  });
+
+  function nearestEvent(price) {
+    var best = EVENTS[0], bestD = Math.abs(EVENTS[0].price - price);
+    EVENTS.forEach(function(ev) {
+      var d = Math.abs(ev.price - price);
+      if (d < bestD) { bestD = d; best = ev; }
+    });
+    return best;
+  }
+
+  function updateBanner(price) {
+    var ev = nearestEvent(price);
+    document.getElementById('eventBanner').className = 'event-banner ' + ev.tier;
+    document.getElementById('evYear').textContent  = ev.year;
+    document.getElementById('evTitle').textContent = ev.title;
+    document.getElementById('evDesc').textContent  = ev.desc;
+    EVENTS.forEach(function(e, i) {
+      document.getElementById('pin' + i).classList.toggle('active', e === ev);
+    });
+  }
+
+  function setDelta(id, cur, base, lowerBetter) {
+    var el = document.getElementById(id);
+    var d = cur - base;
+    if (Math.abs(d / base) < 0.015) { el.textContent = 'baseline'; el.className = 'delta neutral'; return; }
+    var pct = Math.abs(Math.round((d / base) * 100));
+    el.textContent = d > 0 ? ('up ' + pct + '%') : ('down ' + pct + '%');
+    el.className = (d > 0) === lowerBetter ? 'delta up' : 'delta down';
+  }
+
+  function getInsight(price, profit) {
+    if (!selectedDecision) return "Select a CEO decision above to see how airlines have used that strategy in the real world — and whether it worked.";
+    var saving787 = Math.round(GALLONS * 0.20 * price * GBP);
+    if (selectedDecision === 'raise') {
+      if (price > 3.50) return "Raising fares is the most direct response but riskiest at high prices. During the 2008 spike, Aloha Airlines, ATA and Skybus all went bankrupt partly because passengers stopped booking when fares surged. On LHR to JFK, Cotswold Airways competes with BA, Virgin Atlantic, American and Delta — raising fares unilaterally sends passengers straight to rivals on booking comparison sites.";
+      return "A modest fuel surcharge is the standard industry response at moderate prices. BA typically adds a YQ surcharge to tickets rather than raising the base fare — this makes price comparison harder for passengers on booking sites. During the 2022 Ukraine spike, BA's LHR to JFK fuel surcharge reached £400 per return trip.";
+    }
+    if (selectedDecision === 'hedge') {
+      if (price <= 1.50) return "Perfect timing to hedge. Locking in today's low price protects Cotswold Airways if prices spike in future. Southwest Airlines did exactly this in 2004 to 2007 and when the 2008 crisis hit $3.99/gal, Southwest saved an estimated $3.5bn while rivals went bankrupt. BA typically hedges 60 to 70% of its fuel needs 12 to 18 months forward.";
+      if (price >= 3.50) return "Hedging now locks in expensive fuel — a costly gamble. Airlines that hedged heavily before COVID, expecting stable or rising prices, were forced to pay above-market rates when fuel crashed to $0.61/gal in 2020. IAG (BA's parent) took a £1.2bn hedging loss that year. Hedging works best at low prices, not at crisis peaks.";
+      return "Mid-range hedging provides partial protection. BA covers 60 to 70% of consumption 12 to 18 months forward. You won't fully benefit if prices fall, but you're protected against spikes. The permanent risk: prices move sharply the wrong way — as happened dramatically when COVID crashed prices from $2.50 to $0.61 in just eight weeks in early 2020.";
+    }
+    if (selectedDecision === 'cut') return "Route cutting is painful but proven. After the 2008 spike, BA suspended London City to JFK and cut Gatwick long-haul services. During the 2022 Ukraine crisis, BA cancelled routes over Russian airspace (adding up to 3 hours to some journeys). Cotswold Airways would likely drop lower-demand departure times first, concentrating capacity on the most profitable LHR to JFK slots.";
+    if (selectedDecision === 'fees') return "Ancillary fees were largely invented as a fuel-cost response. American Airlines introduced the first $15 checked bag fee in 2008, directly citing $3.99/gal jet fuel. UK airlines followed with charges for seat selection, priority boarding and bags. British Airways collected over £750m in ancillary revenue in 2023. It generates real income without raising the headline ticket price shown on comparison websites.";
+    if (selectedDecision === 'planes') return "The Boeing 787 Dreamliner burns approximately 20% less fuel than the 777-300ER due to composite construction and more efficient GEnx engines. At $" + price.toFixed(2) + "/gal, that saves roughly £" + saving787.toLocaleString() + " on this single flight. BA has been transitioning Gatwick long-haul routes to 787s. A new 787 costs $250 to 280m — payback takes years — but the business case accelerates sharply at sustained high fuel prices.";
+    if (selectedDecision === 'nothing') {
+      if (profit < -15000) return "Waiting is an existential risk at this price. Cotswold Airways is losing £" + Math.abs(Math.round(profit)).toLocaleString() + " on every single flight. Aloha Airlines, ATA and Skybus all went bankrupt in 2008 within weeks of each other — all had waited too long to act. Without intervention, Cotswold Airways has weeks of runway, not months.";
+      return "Fuel prices do historically cycle back down. After the 2008 peak at $3.99/gal, prices fell to $1.50/gal by early 2009. After the 2022 Ukraine spike at $4.12/gal, prices fell back to approximately $2.25/gal by mid-2023. Waiting is a calculated gamble — it has worked for airlines with strong cash reserves, but destroyed those without. The question is: how many flights can Cotswold Airways absorb before reserves run out?";
+    }
+    return "";
+  }
+
+  function update() {
+    var price   = parseFloat(fuelSlider.value);
+    var fuelGBP = Math.round(GALLONS * price * GBP);
+    var total   = fuelGBP + TOTAL_FIXED;
+    var brkEven = Math.round(total / PASSENGERS);
+    var profit  = TOTAL_REV - total;
+    var fuelPct = Math.round((fuelGBP / total) * 100);
+
+    var baseFuel    = Math.round(GALLONS * BASE_PRICE * GBP);
+    var baseBrk     = Math.round((baseFuel + TOTAL_FIXED) / PASSENGERS);
+    var baseProfit  = TOTAL_REV - (baseFuel + TOTAL_FIXED);
+
+    // Price colour
+    var fd = document.getElementById('fuelDisplay');
+    fd.textContent = '$' + price.toFixed(2);
+    fd.className   = 'fuel-price-big ' + (price <= 1.80 ? 'low' : price <= 3.20 ? 'mid' : 'high');
+
+    // Banner updates every slider move
+    updateBanner(price);
+
+    // Metric values
+    document.getElementById('fuelCost').textContent  = '£' + fuelGBP.toLocaleString();
+    document.getElementById('fuelSub').textContent   = '33,000 gal x $' + price.toFixed(2) + ' x £0.79';
+    document.getElementById('breakEven').textContent = '£' + brkEven.toLocaleString();
+    var sign = profit >= 0 ? '+' : '-';
+    document.getElementById('profitVal').textContent = sign + '£' + Math.abs(Math.round(profit)).toLocaleString();
+    document.getElementById('profitVal').style.color = profit >= 0 ? 'var(--success)' : 'var(--danger)';
+    document.getElementById('fuelPct').textContent   = fuelPct + '%';
+
+    setDelta('fuelDelta',   fuelGBP, baseFuel,   true);
+    setDelta('ticketDelta', brkEven, baseBrk,    true);
+    setDelta('profitDelta', profit,  baseProfit, false);
+
+    var pe = document.getElementById('pctDelta');
+    if (fuelPct < 25)      { pe.textContent = 'below avg'; pe.className = 'delta down'; }
+    else if (fuelPct > 50) { pe.textContent = 'above avg'; pe.className = 'delta up'; }
+    else                   { pe.textContent = 'normal range'; pe.className = 'delta neutral'; }
+
+    // Bar widths as % of total cost
+    var fw = Math.min(90, Math.round((fuelGBP       / total) * 100));
+    var lw = Math.round((LABOUR_COST   / total) * 100);
+    var aw = Math.round((AIRPORT_FEES  / total) * 100);
+    var cw = Math.round((AIRCRAFT_COST / total) * 100);
+    var tw = Math.round((CATERING      / total) * 100);
+    var nw = Math.round((NAV_FEES       / total) * 100);
+    var pw = Math.max(0, Math.round((profit / TOTAL_REV) * 100));
+
+    document.getElementById('fuelBar').style.width     = fw + '%';
+    document.getElementById('fuelBarPct').textContent  = fw + '%';
+    document.getElementById('fuelAbs').textContent     = '£' + fuelGBP.toLocaleString();
+    document.getElementById('labourBar').style.width   = lw + '%';
+    document.getElementById('labourPct').textContent   = lw + '%';
+    document.getElementById('airportBar').style.width  = aw + '%';
+    document.getElementById('airportPct').textContent  = aw + '%';
+    document.getElementById('aircraftBar').style.width = cw + '%';
+    document.getElementById('aircraftPct').textContent = cw + '%';
+    document.getElementById('cateringBar').style.width = tw + '%';
+    document.getElementById('cateringPct').textContent = tw + '%';
+    document.getElementById('navBar').style.width      = nw + '%';
+    document.getElementById('navPct').textContent      = nw + '%';
+    document.getElementById('profitBar').style.width   = pw + '%';
+    document.getElementById('profitBarPct').textContent= sign + Math.abs(Math.round((profit / TOTAL_REV) * 100)) + '%';
+    document.getElementById('profitAbs').textContent   = sign + '£' + Math.abs(Math.round(profit)).toLocaleString();
+
+    // Profit status
+    var st = document.getElementById('profitStatus');
+    if (profit > 15000)      { st.textContent = 'Cotswold Airways is Profitable — Flying High'; st.className = 'profit-status profitable'; }
+    else if (profit > 0)     { st.textContent = 'Barely Breaking Even — Turbulence Ahead';       st.className = 'profit-status breaking'; }
+    else                     { st.textContent = 'Losing Money on Every Flight — Action Required'; st.className = 'profit-status loss'; }
+
+    document.getElementById('insightText').textContent = getInsight(price, profit);
+  }
+
+  function selectDecision(btn, type) {
+    document.querySelectorAll('.decision-btn').forEach(function(b){ b.classList.remove('selected'); });
+    selectedDecision = selectedDecision === type ? null : type;
+    if (selectedDecision) btn.classList.add('selected');
+    update();
+  }
+
+  fuelSlider.addEventListener('input', update);
+  update();
+
+  // ── 6-MONTH STRATEGY CALCULATOR ──────────────────────────────────────────
+
+  var MONTHS = ['Month 1','Month 2','Month 3','Month 4','Month 5','Month 6'];
+  var FLIGHTS_PER_MONTH = 60; // 2 return flights/day x 30 days
+  var TOTAL_FLIGHTS = 360;
+
+  // Fuel price scenarios (USD/gal per month)
+  var SCENARIOS = {
+    stable:   { label:'Stable Market (2024)', prices:[2.44, 2.50, 2.47, 2.55, 2.52, 2.48] },
+    spike:    { label:'Crisis Spike (2008-style)', prices:[2.44, 2.90, 3.40, 3.99, 3.70, 3.20] },
+    crash:    { label:'COVID Crash (2020-style)', prices:[2.44, 1.80, 1.10, 0.61, 0.75, 1.20] },
+    recover:  { label:'Recovery — Post-spike Fall', prices:[3.99, 3.50, 2.90, 2.20, 1.80, 1.50] },
+    volatile: { label:'Volatile — Unpredictable', prices:[2.44, 3.80, 1.50, 3.20, 0.90, 2.80] }
+  };
+
+  var currentScenario = 'stable';
+
+  var STRAT_LABELS = {
+    nothing: 'Do nothing',
+    raise:   'Raise ticket prices (+£60/seat)',
+    cut:     'Cut to 1 flight/day',
+    hedge:   'Hedge fuel at start price',
+    fees:    'Add ancillary fees (+£35/pax)',
+    planes:  'Lease fuel-efficient plane'
+  };
+
+  function setScenario(btn, key) {
+    document.querySelectorAll('.scen-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentScenario = key;
+    renderTimeline(key);
+    resetCalc();
+  }
+
+  function priceClass(p) {
+    return p <= 1.80 ? 'low' : p <= 3.20 ? 'mid' : 'high';
+  }
+
+  function renderTimeline(scenKey) {
+    var prices = SCENARIOS[scenKey].prices;
+    var tl = document.getElementById('monthTimeline');
+    tl.innerHTML = '';
+    prices.forEach(function(p, i) {
+      // Base profit per flight at this price (no strategy adjustment)
+      var fuelGBP = Math.round(GALLONS * p * GBP);
+      var profit  = TOTAL_REV - (fuelGBP + TOTAL_FIXED);
+      var card = document.createElement('div');
+      card.className = 'month-card';
+      card.innerHTML =
+        '<div class="m-name">'+MONTHS[i]+'</div>' +
+        '<div class="m-price '+priceClass(p)+'">$'+p.toFixed(2)+'</div>' +
+        '<div class="m-profit '+(profit>=0?'pos':'neg')+'">'+(profit>=0?'+':'')+fmtK(profit)+'/flight</div>';
+      tl.appendChild(card);
+    });
+  }
+
+  function fmtK(n) {
+    var abs = Math.abs(Math.round(n));
+    if (abs >= 1000) return (n<0?'-':'')+'\u00a3'+(abs/1000).toFixed(0)+'k';
+    return (n<0?'-':'')+'\u00a3'+abs;
+  }
+
+  function calcStrategyProfit(stratKey, prices, hedgePrice) {
+    // Per-flight economics for each month, then sum
+    var totalProfit = 0;
+    var flightsPerMonth = FLIGHTS_PER_MONTH;
+
+    prices.forEach(function(marketPrice) {
+      var effectivePrice = marketPrice;
+      var extraRevPerFlight = 0;
+      var extraCostPerMonth = 0;
+      var flightsThisMonth = flightsPerMonth;
+
+      if (stratKey === 'hedge') {
+        effectivePrice = hedgePrice; // locked in price — doesn't move with market
+      }
+      if (stratKey === 'raise') {
+        extraRevPerFlight = 60 * PASSENGERS; // +£60 x 256 pax = +£15,360/flight
+      }
+      if (stratKey === 'fees') {
+        extraRevPerFlight = 35 * PASSENGERS; // +£35 x 256 pax = +£8,960/flight
+      }
+      if (stratKey === 'cut') {
+        flightsThisMonth = 30; // cut from 60 to 30 flights/month
+        // Fixed costs per flight still apply but fewer flights = less total fixed cost exposure
+      }
+      if (stratKey === 'planes') {
+        effectivePrice = marketPrice * 0.80; // 20% fuel saving
+        extraCostPerMonth = 18000; // £18k/month lease premium for newer aircraft
+      }
+
+      var fuelGBP   = Math.round(GALLONS * effectivePrice * GBP);
+      var profitPerFlight = TOTAL_REV + extraRevPerFlight - (fuelGBP + TOTAL_FIXED);
+      var monthProfit = (profitPerFlight * flightsThisMonth) - extraCostPerMonth;
+      totalProfit += monthProfit;
+    });
+
+    return Math.round(totalProfit);
+  }
+
+  function runSimulation() {
+    var scenData = SCENARIOS[currentScenario];
+    var prices   = scenData.prices;
+    var hedgePrice = prices[0]; // hedge locks in month 1 price
+
+    var stratA = document.getElementById('stratA').value;
+    var stratB = document.getElementById('stratB').value;
+    var nameA  = document.getElementById('nameA').value || 'Team A';
+    var nameB  = document.getElementById('nameB').value || 'Team B';
+
+    // Base metrics (no strategy)
+    var baseProfit = 0;
+    var totalFuel  = 0;
+    prices.forEach(function(p) {
+      var fg = Math.round(GALLONS * p * GBP);
+      totalFuel  += fg * FLIGHTS_PER_MONTH;
+      baseProfit += (TOTAL_REV - fg - TOTAL_FIXED) * FLIGHTS_PER_MONTH;
+    });
+    var totalRev = TOTAL_REV * TOTAL_FLIGHTS;
+
+    var profitA = calcStrategyProfit(stratA, prices, hedgePrice);
+    var profitB = calcStrategyProfit(stratB, prices, hedgePrice);
+
+    // Populate totals
+    document.getElementById('resTotalRev').textContent  = '£' + Math.round(totalRev/1e6).toFixed(1) + 'm';
+    document.getElementById('resTotalFuel').textContent = '£' + Math.round(totalFuel/1e6).toFixed(1) + 'm';
+    var bp = Math.round(baseProfit);
+    document.getElementById('resTotalBase').textContent = (bp>=0?'+':'')+'\u00a3'+Math.abs(Math.round(bp/1000))+'k';
+    document.getElementById('resTotalBase').className   = 'tp-val '+(bp>=0?'pos':'neg');
+
+    // Team A
+    document.getElementById('resNameA').textContent   = nameA;
+    document.getElementById('resStratA').textContent  = STRAT_LABELS[stratA];
+    document.getElementById('resTotalA').textContent  = (profitA>=0?'+':'\u2212')+'\u00a3'+Math.abs(Math.round(profitA/1000)).toLocaleString()+'k';
+    document.getElementById('resTotalA').className    = 'tr-total '+(profitA>=0?'pos':'neg');
+    document.getElementById('resPerFlA').textContent  = 'avg '+(Math.round(profitA/TOTAL_FLIGHTS)>=0?'+':'')+'\u00a3'+Math.round(profitA/TOTAL_FLIGHTS).toLocaleString()+' per flight';
+
+    // Team B
+    document.getElementById('resNameB').textContent   = nameB;
+    document.getElementById('resStratB').textContent  = STRAT_LABELS[stratB];
+    document.getElementById('resTotalB').textContent  = (profitB>=0?'+':'\u2212')+'\u00a3'+Math.abs(Math.round(profitB/1000)).toLocaleString()+'k';
+    document.getElementById('resTotalB').className    = 'tr-total '+(profitB>=0?'pos':'neg');
+    document.getElementById('resPerFlB').textContent  = 'avg '+(Math.round(profitB/TOTAL_FLIGHTS)>=0?'+':'')+'\u00a3'+Math.round(profitB/TOTAL_FLIGHTS).toLocaleString()+' per flight';
+
+    // Winner
+    var wb = document.getElementById('winnerBar');
+    var wt = document.getElementById('winnerTitle');
+    var ws = document.getElementById('winnerSub');
+    var diff = Math.abs(Math.round((profitA - profitB)/1000));
+
+    if (profitA > profitB) {
+      wb.className = 'winner-bar ta-wins';
+      wt.textContent = '🏆 ' + nameA + ' wins!';
+      ws.textContent = nameA + ' made £'+diff+'k more than '+nameB+' over 6 months. Strategy: '+STRAT_LABELS[stratA]+'.';
+    } else if (profitB > profitA) {
+      wb.className = 'winner-bar tb-wins';
+      wt.textContent = '🏆 ' + nameB + ' wins!';
+      ws.textContent = nameB + ' made £'+diff+'k more than '+nameA+' over 6 months. Strategy: '+STRAT_LABELS[stratB]+'.';
+    } else {
+      wb.className = 'winner-bar draw';
+      wt.textContent = 'It\'s a draw!';
+      ws.textContent = 'Both teams ended with identical results — £'+Math.abs(Math.round(profitA/1000))+'k.';
+    }
+
+    document.getElementById('resultsSection').classList.add('visible');
+    document.getElementById('lockBtn').style.display = 'none';
+    document.getElementById('resultsSection').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+
+  function resetCalc() {
+    document.getElementById('resultsSection').classList.remove('visible');
+    document.getElementById('lockBtn').style.display = '';
+  }
+
+  // Init timeline
+  renderTimeline('stable');
+</script>
+</body>
+</html>
